@@ -1,0 +1,39 @@
+# HPP gut-microbiome / biological-age pipeline dependencies
+# (covers cross_lagged_panel.py and every script in this folder that builds on it —
+#  the clock, N1-N5 review analyses, all figure scripts, and the orchestrator)
+#
+# Python 3.11 recommended (matches the environment this pipeline was developed and
+# validated on: conda env "pheno").
+
+pandas>=2.0
+numpy>=1.24
+scipy>=1.10
+scikit-learn>=1.3
+statsmodels>=0.14
+matplotlib>=3.7
+pyarrow>=12.0          # required — all HPP source data is read as .parquet
+
+# --- Recommended, not strictly required ---
+# The primary gut-microbiome clock (cross_lagged_panel.py::build_gut_clock_ageaccel,
+# and every script that calls it: N3_ageaccel.py, build_single_visit_ageaccel.py,
+# figE6_ageaccel_scatter.py, fig3_reliability.py's live ICC, clock_validation.py,
+# heldout_clock_validation.py) trains LightGBM by default and falls back to
+# sklearn's HistGradientBoostingRegressor ONLY if lightgbm is not importable.
+# Falling back changes the clock's exact numbers (different model family) even
+# though the pipeline will still run end-to-end — install lightgbm to reproduce
+# the manuscript's reported clock metrics (CV r=0.380, R²=0.144, MAE=5.76 yr)
+# exactly rather than an approximation.
+lightgbm>=4.0
+
+# openpyxl — only for build_workbook.py / build_workbook_review.py (Excel export
+# of the numbers workbook). Not needed for any of the statistical/figure scripts.
+openpyxl>=3.1
+
+# boto3 — only for check_s3_access.py (one-off S3 connectivity check). Not needed
+# for anything else in this folder.
+boto3>=1.28
+
+# econml — only for prototype.py / hpp_prototype.py (the earlier NHANES
+# causal-inference proof-of-concept, unrelated to the HPP cross-lagged pipeline).
+# Leave commented out unless you are specifically re-running that older prototype.
+# econml>=0.15
