@@ -150,16 +150,17 @@ ALPHA_FDR     = 0.05       # BH-FDR threshold for cross-lag tests
 MIN_OVERLAP   = 500        # minimum n for a cross-lag pair to be reported
 CLOCK_CV_FOLDS = 5         # folds for clock r² estimate
 
-# Covariates: not the outcomes, not the exposures
-# [ROUND 3 FIX] The paper's stated primary model (Methods, meth:crosslag) is
+# Covariates: not the outcomes, not the exposures.
+#
+# The paper's stated primary model (Methods, meth:crosslag) is
 # Y_t2 ~ Y_t1 + X_t1 + age + sex ONLY -- matching PRIMARY_COVARIATES below and
-# the E1-E3 spec in frozen_signature_pipeline.py's cross_lag_min(). The code
-# had instead been requiring education_level and household_income too (both
-# sparse), which silently throttled all 18 main cross-lag tests to n~509-522
-# via dropna, well below what's actually available (~1,800+ for diversity,
-# ~1,780+ for AgeAccel). PRIMARY_COVARIATES is now what actually matches
-# Methods; BASE_COVARIATES (full set) is kept ONLY for the fully-adjusted
-# sensitivity analysis already described in the paper (subsec:covariate).
+# the E1-E3 spec in frozen_signature_pipeline.py's cross_lag_min(). Also
+# requiring education_level and household_income (both sparse) via dropna
+# throttles all 18 main cross-lag tests to n~509-522, well below what's
+# actually available (~1,800+ for diversity, ~1,780+ for AgeAccel) -- use
+# PRIMARY_COVARIATES for the primary analysis; BASE_COVARIATES (full set) is
+# for the fully-adjusted sensitivity analysis described in the paper
+# (subsec:covariate) only.
 PRIMARY_COVARIATES = ["age_at_visit", "sex_encoded"]
 BASE_COVARIATES = ["age_at_visit", "sex_encoded", "education_level", "household_income"]
 
@@ -769,13 +770,13 @@ def _find_collection_date_col(df: pd.DataFrame) -> str | None:
 
 def _compute_visit_age(df: pd.DataFrame, birth_year_col: str = "birth_year") -> pd.Series:
     """
-    [B3 FIX] Genuine per-visit chronological age, computed from each row's own
-    collection date and the participant's birth year -- matching the approach
-    in longitudinal_microbiome_age.py, which explicitly warns that reusing a
-    single static age across visits "would mechanically force the two
-    timepoints apart and corrupt the whole analysis." Returns NaN for rows
-    that don't have both a parseable date and a birth year; callers should
-    fall back to the static age_at_visit for those rows only.
+    Genuine per-visit chronological age, computed from each row's own
+    collection date and the participant's birth year. A single static age
+    reused across both visits would mechanically force the two timepoints
+    apart and corrupt any within-person change analysis (see
+    longitudinal_microbiome_age.py for the same argument). Returns NaN for
+    rows that don't have both a parseable date and a birth year; callers
+    should fall back to the static age_at_visit for those rows only.
     """
     date_col = _find_collection_date_col(df)
     if date_col is None or birth_year_col not in df.columns:
@@ -862,8 +863,8 @@ def build_gut_clock_ageaccel(gut_diversity: pd.DataFrame,
 
     train_base = train_base.merge(pop[["study_id", "age_at_visit", "birth_year", "sex_encoded"]],
                                   on="study_id", how="left")
-    # [B3 FIX] Prefer true age at this participant's own (single) visit over
-    # the static "2020 - birth_year" placeholder; single-visit participants
+    # Prefer true age at this participant's own (single) visit over the
+    # static "2020 - birth_year" placeholder; single-visit participants
     # enrolled in a different year would otherwise train the clock on a
     # mislabelled age. Falls back to the static value where no collection
     # date is available.
@@ -871,7 +872,7 @@ def build_gut_clock_ageaccel(gut_diversity: pd.DataFrame,
     n_train_recomputed = int(visit_age_train.notna().sum())
     train_base["age_at_visit"] = visit_age_train.where(
         visit_age_train.notna(), train_base["age_at_visit"])
-    log(f"  [B3] Training frame: per-visit age computed for "
+    log(f"  Training frame: per-visit age computed for "
         f"{n_train_recomputed:,}/{len(train_base):,} rows "
         f"(remainder use the static age_at_visit fallback).")
 
@@ -956,20 +957,17 @@ def build_gut_clock_ageaccel(gut_diversity: pd.DataFrame,
     repeat_df = repeat_df.merge(pop[["study_id", "age_at_visit", "birth_year"]],
                                 on="study_id", how="left")
 
-    # [B3 FIX] gut_diversity (the source of repeat_df) does not carry a raw
+    # gut_diversity (the source of repeat_df) does not carry a raw
     # collection-date column, so attach it from the full raw frame (fg), keyed
     # on the real visit value -- the same key used for the species merge below
     # -- then compute a genuine per-visit age instead of reusing the static
     # age_at_visit for both visits.
-    # [BUGFIX to B3] fg's stage column is whatever full_gut's was named by the
-    # caller -- in main() it is already renamed to "visit" before being passed
-    # in as full_gut, so stg_fg (looked up above by searching for literal
-    # "research_stage") is None and fg is NEVER renamed to have a column
-    # called "research_stage". The original version of this block required
-    # "research_stage" in fg.columns, which was therefore always False on the
-    # real data and silently fell back to the static age for every repeat-visit
-    # row. Look up fg's actual stage column defensively instead of assuming
-    # its name.
+    #
+    # fg's stage column can be named several things depending on the caller
+    # (main() already renames it to "visit" before passing fg in as
+    # full_gut), so look it up defensively rather than assuming a literal
+    # "research_stage" -- an incorrect assumption here silently falls back to
+    # the static age for every repeat-visit row with no warning.
     date_col_fg = _find_collection_date_col(fg)
     fg_stage_col = next((c for c in fg.columns
                          if c == "visit" or "research_stage" in c.lower()), None)
@@ -982,46 +980,30 @@ def build_gut_clock_ageaccel(gut_diversity: pd.DataFrame,
         n_rep_recomputed = int(visit_age_rep.notna().sum())
         repeat_df["age_at_visit"] = visit_age_rep.where(
             visit_age_rep.notna(), repeat_df["age_at_visit"])
-        log(f"  [B3] Repeat-visit frame: per-visit age computed for "
+        log(f"  Repeat-visit frame: per-visit age computed for "
             f"{n_rep_recomputed:,}/{len(repeat_df):,} rows "
             f"(remainder use the static age_at_visit fallback).")
     else:
-        log(f"  [B3] WARNING: date_col={date_col_fg}, stage_col={fg_stage_col} on the "
+        log(f"  WARNING: date_col={date_col_fg}, stage_col={fg_stage_col} on the "
             f"raw gut frame -- repeat-visit AgeAccel will use the static age_at_visit "
             f"(same value at both visits) throughout.")
 
-    # [B1 FIX] Join species on the REAL visit/research_stage value, exactly as
-    # compute_diversity() already does, instead of matching on "research_stage"
-    # (a column repeat_df never has -- it only has "visit", the same raw stage
-    # value under a different name). The old code's "research_stage" check was
-    # therefore always False, so every repeat participant silently fell through
-    # to a rank-based fallback that independently re-derives visit_n from the
-    # species table's own research_stage values. Two independent rank
-    # reconstructions are not guaranteed to agree per participant, which is why
-    # species data failed to link for many repeat-visit rows.
+    # Join species on the REAL visit/research_stage value, exactly as
+    # compute_diversity() already does, rather than matching on a literal
+    # "research_stage" column -- repeat_df never has one, only "visit" (the
+    # same raw stage value under a different name). Matching on the wrong
+    # column name falls through to a rank-based fallback that independently
+    # re-derives visit_n from the species table's own research_stage values;
+    # two independent rank reconstructions are not guaranteed to agree per
+    # participant, which is how species data fails to link for repeat-visit
+    # rows.
     if sp_slim is not None and "visit" in repeat_df.columns:
         sp_join = sp_slim.rename(columns={"research_stage": "visit"})
-        # [DIAG] compute_diversity()'s species join on this exact (study_id,
-        # visit) key matched 100% of rows on the real data; this conceptually
-        # identical join matched far fewer. Log enough to tell dtype mismatch
-        # apart from a genuine study_id/visit coverage gap before guessing again.
-        log(f"  [DIAG] repeat_df['visit'] dtype={repeat_df['visit'].dtype}, "
-            f"n_unique={repeat_df['visit'].nunique()}, "
-            f"sample={sorted(repeat_df['visit'].dropna().unique().tolist())[:5]}")
-        log(f"  [DIAG] sp_join['visit'] dtype={sp_join['visit'].dtype}, "
-            f"n_unique={sp_join['visit'].nunique()}, "
-            f"sample={sorted(sp_join['visit'].dropna().unique().tolist())[:5]}")
-        common_visits = (set(repeat_df["visit"].dropna().unique())
-                        & set(sp_join["visit"].dropna().unique()))
-        log(f"  [DIAG] overlapping visit values between the two sides: {len(common_visits)}")
-        common_ids = set(repeat_df["study_id"]) & set(sp_join["study_id"])
-        log(f"  [DIAG] overlapping study_id between the two sides: {len(common_ids)} "
-            f"(repeat_df has {repeat_df['study_id'].nunique()}, "
-            f"sp_join has {sp_join['study_id'].nunique()})")
+        n_before = len(repeat_df)
         repeat_df = repeat_df.merge(sp_join, on=["study_id", "visit"], how="left",
                                     indicator="_merge_flag")
-        log(f"  [DIAG] merge indicator counts: "
-            f"{repeat_df['_merge_flag'].value_counts().to_dict()}")
+        n_matched = int((repeat_df["_merge_flag"] == "both").sum())
+        log(f"  species join on (study_id, visit): {n_matched:,}/{n_before:,} rows matched")
         repeat_df = repeat_df.drop(columns=["_merge_flag"])
     elif sp_slim is not None:
         log("  WARNING: repeat_df has no raw 'visit' (research_stage) value -- "
@@ -1039,7 +1021,7 @@ def build_gut_clock_ageaccel(gut_diversity: pd.DataFrame,
     repeat_df = repeat_df.loc[:, ~repeat_df.columns.duplicated(keep="first")]
 
     if sp_abund_cols and all(c in repeat_df.columns for c in sp_abund_cols):
-        # [B2 FIX] A row only carries a genuine microbiome sample if the merge
+        # A row only carries a genuine microbiome sample if the merge
         # above actually matched -- i.e. at least one abundance column is
         # non-null before filling. Rows where the merge failed get an all-NaN
         # abundance block; predicting on a zero-filled vector for those rows
@@ -1370,15 +1352,17 @@ def load_incident_diseases(pop: pd.DataFrame,
     - Disease at t2 but NOT t1 = INCIDENT
     Test: gut microbiome at t1 predicts incident disease at t2.
 
-    [ROUND 3 FIX] Two issues found in this function, distinct from (but the
-    same root cause as) the main cross-lag models: (1) it required the full
-    BASE_COVARIATES set (age+sex+education+income) via dropna -- the same
-    over-adjustment issue -- now defaults to PRIMARY_COVARIATES (age+sex),
-    matching Methods. (2) it had NO events-per-variable check at all: with
-    shannon+richness+4 covariates+const = 7 params and only n_incident>=30
-    required, EPV could run as low as ~4.3 -- well under the paper's own <10
-    fragility floor used elsewhere (Table E8) -- and was tabulated with no
-    disclosure. Fixed to require genuine EPV>=10 and exclude, not flag.
+    Defaults to PRIMARY_COVARIATES (age+sex), matching Methods, rather than
+    the full BASE_COVARIATES set (age+sex+education+income) -- requiring the
+    sparser education/income columns via dropna over-adjusts and shrinks the
+    incident-disease sample unnecessarily.
+
+    Requires a genuine events-per-variable (EPV) of >=10 and excludes any
+    phenotype that doesn't meet it, rather than tabulating and flagging it:
+    with shannon+richness+covariates+const as the parameter count, EPV can
+    run well under 10 (the paper's own fragility floor used elsewhere,
+    Table E8) for phenotypes with few incident events, and reporting a
+    coefficient anyway would understate how unstable it is.
     """
     log("\n[Step 6] Incident disease analysis...")
     pheno_dir = DATA_ROOT / "curated_phenotypes"
@@ -1874,8 +1858,8 @@ def plot_path_comparison(results: pd.DataFrame, out_dir: Path) -> None:
 
             y_pos += 0.4   # gap between groups
 
-        # [MANUSCRIPT] shaded +/-0.10 equivalence band (SESOI, ROUND 5 TOST analysis
-        # in cross_lag_equivalence_bounds.py). Drawn from the same pre-specified
+        # shaded +/-0.10 equivalence band (SESOI, TOST analysis in
+        # cross_lag_equivalence_bounds.py). Drawn from the same pre-specified
         # constant, not re-derived from data -- kept in sync by referencing the
         # literal 0.10 the equivalence script also uses, rather than importing that
         # module here (avoids a circular import; the value is a fixed design choice,
@@ -2245,14 +2229,14 @@ def plot_incident_disease(incident_df: pd.DataFrame, out_dir: Path) -> None:
                         dpi=300, bbox_inches="tight")
         plt.close()
         log(f"  Saved: {out_dir}/incident_disease_OR.pdf/.png")
-        # NOTE: this in-module plot (illustrative only, fed by the diagnostic
-        # in-module load_incident_diseases() -- ROUND 4 Item 3) no longer also
-        # saves Fig6_disease.pdf. The manuscript's Fig6_disease.pdf is now
+        # NOTE: this in-module plot is illustrative only (fed by the
+        # diagnostic in-module load_incident_diseases()) and does NOT also
+        # save Fig6_disease.pdf. The manuscript's Fig6_disease.pdf is
         # produced exclusively by fig6_disease_combined.py, which reads the
         # CANONICAL standalone incident_disease.py output and adds the
-        # disease-burden panel -- two scripts writing the same manuscript
-        # filename was exactly the incident_disease.csv collision bug found
-        # and fixed in ROUND 3/4; not repeating that mistake here.
+        # disease-burden panel. Two scripts writing the same manuscript
+        # filename is exactly how the incident_disease.csv collision
+        # (below) happens -- don't repeat it for this figure.
     except Exception as e:
         log(f"  Incident disease plot failed: {e}")
 
@@ -2339,16 +2323,16 @@ def report_covariate_spec_comparison(results_primary: pd.DataFrame,
                                      gut_div: pd.DataFrame, gut_ageaccel: pd.DataFrame,
                                      outcomes: dict, pop: pd.DataFrame) -> pd.DataFrame:
     """
-    [ROUND 3] For each of the 9 (exposure x outcome) base pairs: n under the
+    For each of the 9 (exposure x outcome) base pairs: n under the
     PRIMARY spec (age+sex, matching Methods) vs the SENSITIVITY spec
     (+education+income), plus education/income availability within the base
-    (exposure+outcome-both-visits) cohort. Confirms/quantifies the covariate
+    (exposure+outcome-both-visits) cohort. Quantifies the covariate
     over-adjustment before comparing coefficients under the corrected spec.
     n is identical for Path A and Path B of the same pair by construction
     (both use the same four required columns, just relabeled), so this is
     reported once per pair, not once per direction.
     """
-    log("\n[ROUND 3] Covariate-spec comparison (primary age+sex vs sensitivity "
+    log("\nCovariate-spec comparison (primary age+sex vs sensitivity "
         "full covariates)...")
     exposures = {"shannon": gut_div, "richness": gut_div, "gut_ageaccel": gut_ageaccel}
     pop_idx = pop.set_index("study_id")
@@ -2413,17 +2397,15 @@ def save_results(results: pd.DataFrame, direction_df: pd.DataFrame,
     results.to_csv(out_dir / "cross_lag_all_paths.csv", index=False)
     direction_df.to_csv(out_dir / "causal_direction_summary.csv", index=False)
     if incident_df is not None:
-        # [ROUND 4 FIX] This used to write to "incident_disease.csv" -- the
-        # SAME filename the standalone incident_disease.py script writes to,
-        # so whichever ran last silently overwrote the other with no warning.
-        # CANONICAL for Table E7/E8 is the standalone incident_disease.py: it
-        # has a proper covariate fallback ladder, reports both shannon AND
-        # richness as separate tests (this in-module version fits richness
-        # into the model but never extracts/reports its own coefficient), and
-        # already has the duplicate-phenotype-filename issue documented. This
-        # in-module version exists only to feed plot_incident_disease() within
-        # THIS script's own Step 7 -- an illustrative plot, not a manuscript
-        # number source -- so it now writes to a clearly distinct filename.
+        # Writes to a filename DISTINCT from "incident_disease.csv" on
+        # purpose -- that is the standalone incident_disease.py script's
+        # output, the CANONICAL source for Table E7/E8 (it has a proper
+        # covariate fallback ladder and reports shannon AND richness as
+        # separate tests; this in-module version fits richness into the
+        # model but never extracts its own coefficient). This in-module
+        # version exists only to feed plot_incident_disease() within this
+        # script's own Step 7 -- an illustrative plot, not a manuscript
+        # number source -- so the two must never share a filename.
         incident_df.to_csv(out_dir / "incident_disease_inmodule_diagnostic.csv",
                            index=False)
 
@@ -2470,11 +2452,8 @@ def main():
     # Step 1: Load
     pop          = load_population()
     gut_full     = pd.read_parquet(DATA_ROOT / "gut_microbiome" / "gut_microbiome.parquet")
-    log(f"\n[DIAG] gut_full raw shape: {gut_full.shape}, index.names: {gut_full.index.names}")
-    log(f"[DIAG] gut_full columns[:12]: {list(gut_full.columns[:12])}")
-    log(f"[DIAG] gut_full dtypes[:6]: {dict(list(gut_full.dtypes.items())[:6])}")
+    log(f"  gut_full raw shape: {gut_full.shape}")
     if gut_full.index.names != [None]: gut_full = gut_full.reset_index()
-    log(f"[DIAG] After reset_index — columns[:12]: {list(gut_full.columns[:12])}")
     pid_col  = next(c for c in gut_full.columns if c in ("participant_id","study_id"))
     stg_col  = next(c for c in gut_full.columns if "research_stage" in c.lower())
     gut_full = gut_full.rename(columns={pid_col: "study_id", stg_col: "visit"})
@@ -2490,17 +2469,14 @@ def main():
     # Step 2: Diversity
     gut_div = compute_diversity(gut_long)
 
-    # ---- DEBUG: verify visit_n means the SAME research stage across datasets ----
-    # gut_div and each outcome frame each rank their OWN "visit" (raw research
-    # stage) into visit_n independently. If a participant's stage set differs
-    # between the microbiome data and an outcome (e.g. gut has stages {10,15}
-    # but grip has {10,12}), visit_n=2 silently pairs different calendar times
-    # across the two variables -- which injects noise and biases cross-lag
-    # estimates toward null. This check quantifies how often that happens.
-    log("\n[DEBUG] visit_n alignment check (gut microbiome vs. each outcome)")
-    if "visit" not in gut_div.columns:
-        log("  SKIPPED: gut_div has no 'visit' column (unexpected -- check "
-            "compute_diversity's return columns).")
+    # [CHECK-0] visit_n alignment: gut_div and each outcome frame each rank
+    # their OWN "visit" (raw research stage) into visit_n independently. If a
+    # participant's stage set differs between the microbiome data and an
+    # outcome (e.g. gut has stages {10,15} but grip has {10,12}), visit_n=2
+    # would silently pair different calendar times across the two variables --
+    # injecting noise and biasing cross-lag estimates toward null. Confirm
+    # that doesn't happen rather than assume it.
+    log("\n[CHECK-0] visit_n alignment (gut microbiome vs. each outcome)")
     for ds_name, out_df in outcomes.items():
         if "visit" not in gut_div.columns or "visit" not in out_df.columns:
             log(f"  {ds_name}: SKIPPED, missing 'visit' column on one side")
@@ -2518,31 +2494,26 @@ def main():
             f"raw research_stage on both sides at matching visit_n"
             + ("" if pct > 95 else "  <-- WARNING: substantial misalignment, "
                "cross-lag results for this pair may be attenuated by noise"))
-    # ---- END DEBUG ----
 
     # Step 3: Clock AgeAccel
     gut_ageaccel, clock_data = build_gut_clock_ageaccel(gut_div, gut_full, pop)
 
-    # ---- DEBUG: diagnose why gut_ageaccel cross-lag tests return n=0 ----
-    log("\n[DEBUG] gut_ageaccel diagnostic")
-    log(f"  total rows: {len(gut_ageaccel)}")
-    log(f"  visit_n dtype: {gut_ageaccel['visit_n'].dtype}, "
-        f"unique values: {sorted(gut_ageaccel['visit_n'].unique())}")
-    log(f"  non-null gut_ageaccel: {gut_ageaccel['gut_ageaccel'].notna().sum()} "
-        f"/ {len(gut_ageaccel)}")
+    # [CHECK-2c] gut_ageaccel coverage: how many repeat-visit participants have
+    # a valid clock prediction at BOTH visit 1 and visit 2, and how much of
+    # that overlaps with each outcome dataset's own both-visit participants
+    # (the actual analytic n each cross-lag test will run on).
     valid_ga = gut_ageaccel.dropna(subset=["gut_ageaccel"])
     per_id = valid_ga.groupby("study_id")["visit_n"].apply(lambda x: sorted(x.unique()))
     both_visits = per_id.apply(lambda v: 1 in v and 2 in v).sum()
-    log(f"  participants with valid gut_ageaccel at BOTH visit 1 and 2: {both_visits}")
-    # cross-check against each outcome dataset's own visit-1/visit-2 id sets
+    log(f"\n[CHECK-2c] gut_ageaccel: {valid_ga['study_id'].nunique():,} participants with "
+        f"a valid value, {both_visits:,} at BOTH visit 1 and 2")
     for ds_name, out_df in outcomes.items():
         out_ids_t1 = set(out_df[out_df["visit_n"] == 1]["study_id"])
         out_ids_t2 = set(out_df[out_df["visit_n"] == 2]["study_id"])
         ga_ids_t1 = set(valid_ga[valid_ga["visit_n"] == 1]["study_id"])
         ga_ids_t2 = set(valid_ga[valid_ga["visit_n"] == 2]["study_id"])
         overlap = (ga_ids_t1 & out_ids_t1) & (ga_ids_t2 & out_ids_t2)
-        log(f"  overlap with '{ds_name}' (both visits, both sides): {len(overlap)}")
-    # ---- END DEBUG ----
+        log(f"  overlap with '{ds_name}' (both visits, both sides): {len(overlap):,}")
 
     # Step 4: Cross-lagged models -- PRIMARY spec (age+sex, matches Methods
     # meth:crosslag and the E1-E3 spec). This is now the main analysis.
@@ -2550,10 +2521,9 @@ def main():
                                      covariate_set=PRIMARY_COVARIATES,
                                      spec_label="primary")
 
-    # [ROUND 3] SENSITIVITY spec (+education+income), matching what the paper
-    # already describes as its fully-adjusted sensitivity analysis
-    # (subsec:covariate) -- kept as a labeled secondary analysis only, not the
-    # primary result.
+    # SENSITIVITY spec (+education+income), matching what the paper already
+    # describes as its fully-adjusted sensitivity analysis (subsec:covariate)
+    # -- kept as a labeled secondary analysis only, not the primary result.
     results_sensitivity = run_cross_lagged_panel(
         gut_div, gut_ageaccel, outcomes, pop,
         covariate_set=BASE_COVARIATES, spec_label="sensitivity_full_covariates")

@@ -21,9 +21,9 @@ import matplotlib.pyplot as plt
 
 warnings.filterwarnings("ignore")
 
-# [ROUND 4] Reuses cross_lagged_panel.py's corrected load_population() for
-# age/sex instead of the standalone reimplementation this script used to
-# carry -- see the age-covariate block below for why.
+# Reuses cross_lagged_panel.py's corrected load_population() for age/sex
+# rather than a standalone reimplementation -- see the age-covariate block
+# below for why.
 import cross_lagged_panel as clp
 
 DATA_ROOT   = Path(os.environ.get("HPP_DATA_ROOT",  Path.home() / "studies" / "hpp_datasets"))
@@ -144,14 +144,11 @@ log(f"  Gut t1 participants with Shannon: {len(gut_t1):,}")
 log(f"  Shannon mean={gut_t1['shannon'].mean():.3f} sd={gut_t1['shannon'].std():.3f}")
 
 # ── Step 2: Sex + age covariates ───────────────────────────────
-# [ROUND 4 FIX] This block used to reimplement age loading independently --
-# deliberately matching cross_lagged_panel.py's OLD static-age formula
-# (age_at_visit = 2020 - sociodemographics.DOB, n=7,383 non-null) "so this
-# script's age matches the paper's." That source has since been fixed there
-# (backfilled from population.parquet.year_of_birth, near-complete coverage;
-# genuine per-visit age where a collection date is available) -- so matching
-# the OLD formula now means DELIBERATELY reproducing a bug that's fixed
-# everywhere else. Reusing the corrected loader directly instead.
+# Age comes from cross_lagged_panel.py's load_population(), which backfills
+# birth year from population.parquet.year_of_birth (near-complete coverage)
+# and uses genuine per-visit age wherever a collection date is available.
+# Reimplementing age loading independently here would risk silently drifting
+# from that corrected source.
 log("\nLoading sex + age covariates (via cross_lagged_panel.load_population, "
     "the corrected source)...")
 pop_demo = clp.load_population()[["study_id", "age_at_visit", "sex_encoded"]].rename(

@@ -99,8 +99,8 @@ def main() -> None:
     # age+sex only (PRIMARY_COVARIATES), for each of the 3 outcome datasets, using
     # shannon as the representative exposure (richness/gut_ageaccel share the same
     # covariate-completeness gate and land within a few participants of this by
-    # construction -- see exclusion_funnel.csv for the exact per-exposure breakdown
-    # already banked in ROUND 6's Table A9 answer).
+    # construction -- see exclusion_funnel.csv for the exact per-exposure breakdown,
+    # Table A9).
     try:
         outcomes = clp.load_functional_outcomes()
         for ds_name, out_df in outcomes.items():
@@ -118,9 +118,9 @@ def main() -> None:
             rows.append(describe(sample_pop, f"Analytic sample -- {ds_name} (primary spec)"))
     except Exception as exc:
         log(f"  Analytic-sample reconstruction failed: {type(exc).__name__}: {exc} "
-            f"-- skipped, not fabricated. The exclusion_funnel.csv numbers already "
-            f"banked (ROUND 6) remain the authoritative per-test n's regardless of "
-            f"whether this diagnostic block succeeds.")
+            f"-- skipped, not fabricated. exclusion_funnel.csv's numbers remain "
+            f"the authoritative per-test n's regardless of whether this "
+            f"diagnostic block succeeds.")
 
     # --- FULL HPP POPULATION (reference row) ---
     rows.append(describe(pop, "Full HPP population (reference)"))

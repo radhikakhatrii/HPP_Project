@@ -44,15 +44,16 @@ RESULTS_DIR = Path(clp.RESULTS_DIR)
 FIG_DIR = Path("figures")
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-# Ledger-confirmed constants (MANUSCRIPT_UPDATE_LEDGER.md ROUND 1/3/6). Used as
-# the DISPLAYED values; cross-checked against a live re-derivation below where
-# possible so a stale hardcode cannot silently drift from the real pipeline.
+# Manuscript-confirmed constants (see MANUSCRIPT_UPDATE_LEDGER.md for full
+# provenance). Used as the DISPLAYED values; cross-checked against a live
+# re-derivation below where possible so a stale hardcode cannot silently
+# drift from the real pipeline.
 FULL_POPULATION = 10644
-CLOCK_TRAINING_N = 6807         # single-visit stratum (ROUND 1: birth-year backfill, 5188->6807)
+CLOCK_TRAINING_N = 6807         # single-visit stratum, after the birth-year backfill (was 5,188 before)
 REPEAT_VISIT_N = 1835           # repeat-visit stratum (2+ gut samples)
 DIVERSITY_BOTH_N = 1823         # diversity computable at both visits
-AGEACCEL_BOTH_N = 1787          # leak-free AgeAccel at both visits (ROUND 1: 523->1787)
-ANALYTIC_N = {"hand_grip": 1769, "blood_pressure": 1782, "anthropometrics": 1778}  # ROUND 3
+AGEACCEL_BOTH_N = 1787          # leak-free AgeAccel at both visits (was 523 before the leak-free fix)
+ANALYTIC_N = {"hand_grip": 1769, "blood_pressure": 1782, "anthropometrics": 1778}
 
 _INK = "#2B2B2B"
 _BOX_TRAIN = "#4C72B0"
@@ -190,7 +191,7 @@ def main() -> None:
         _box(ax1, (x, 1.5), 2.6, 1.0, f"{label}\nn = {n:,}", _BOX_ANALYTIC, fontsize=7.6)
     ax1.text(5, 0.9,
              "Primary spec (age+sex only); n's shown are for the gut_ageaccel exposure --\n"
-             "shannon/richness land at 1,769/1,782/1,778 too (exclusion_funnel.csv, ROUND 6 Table A9)",
+             "shannon/richness land at 1,769/1,782/1,778 too (exclusion_funnel.csv, Table A9)",
              ha="center", fontsize=6.6, color="#555555", style="italic")
 
     # ---------------- PANEL 4: validation hierarchy -> Results sections ----------------

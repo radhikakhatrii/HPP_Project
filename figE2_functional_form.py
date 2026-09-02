@@ -8,10 +8,10 @@ modification/interactions: 45). Reads all 4 CSVs directly -- no
 re-computation, no hand-entry.
 
 Two panels: (a) a p-value strip per family (every individual test's p, so the
-full 72-row granularity IS shown visually even though no single all-72-row
-table exists in the ledger yet -- ROUND 6 Item 9 banked family-level counts
-only); (b) FDR-significant count per family vs total, with the q<0.05 line
-marked, confirming the "0 significant, null generalises" headline visually.
+full 72-row granularity IS shown visually even though the manuscript's own
+tables bank only family-level counts); (b) FDR-significant count per family
+vs total, with the q<0.05 line marked, confirming the "0 significant, null
+generalises" headline visually.
 
 Any prior figure that mislabelled this an "equivalence bound" was a mislabel
 (these are ordinary two-sided significance tests against a null of no

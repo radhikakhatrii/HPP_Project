@@ -121,10 +121,8 @@ def check_table2(tex: str) -> None:
         # Path B = phenotype(t1)->microbiome(t2): exposure=phenotype, outcome=microbiome.
         # cross_lag_all_paths.csv's own exposure/outcome columns follow this convention;
         # the .tex's "Shannon x grip" label names the PAIR, not literally which column is
-        # which, so direction B needs the swap to match the CSV's real semantics. (This
-        # swap was missing in an earlier draft of this script and produced 9 spurious
-        # "no CSV match" rows for every Path B test -- verified against a synthetic CSV
-        # built from the ROUND 3 ledger table before this script was finalized.)
+        # which, so direction B needs the swap below to match the CSV's real semantics --
+        # omitting it produces 9 spurious "no CSV match" rows for every Path B test.
         exposure, outcome = ((microbiome_metric, phenotype) if path == "A"
                              else (phenotype, microbiome_metric))
         tex_rows.append({"path": path, "exp_out": exp_out_raw, "exposure": exposure,

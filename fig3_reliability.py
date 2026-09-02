@@ -4,9 +4,10 @@ fig3_reliability.py
 ===============================================================================
 [MANUSCRIPT] Fig3_reliability.pdf -- test-retest ICC for the three microbiome
 measures (AgeAccel, Shannon, richness) plus the Spearman-Brown a priori
-amplification check (predicted vs observed). "Largely unchanged" per the
-manuscript spec -- Round 1 only changed the AgeAccel ICC (0.483 -> 0.516);
-Shannon/richness ICC are unaffected (they don't depend on the clock at all).
+amplification check (predicted vs observed). Shannon/richness ICC don't
+depend on the clock at all, so they're independent of any clock fix; only
+the AgeAccel ICC changes if the clock's leak-free discipline changes
+(currently 0.516).
 
 Data sources, in priority order (never fabricated, always cited which one
 fired):
@@ -15,9 +16,8 @@ fired):
      [CHECK-2b] -- this IS the corrected 0.516 by construction, not a copy.
   2. Shannon/richness ICC: results_cross_lagged/diversity_icc.csv if present
      (written by paper_numbers.py, ICC(3,1) two-way-mixed formula) --
-     otherwise falls back to the ledger-banked 0.626/0.770 (ROUND 1/6,
-     unaffected by any bug this session found) with a clearly logged notice
-     that the fallback fired.
+     otherwise falls back to the ledger-banked 0.626/0.770 with a clearly
+     logged notice that the fallback fired.
 
     conda activate pheno
     cd ~/studies/HPP_Prototype
@@ -46,17 +46,17 @@ FIG_DIR.mkdir(parents=True, exist_ok=True)
 _PATH_A = "#4C72B0"
 _INK = "#2B2B2B"
 
-# Ledger-banked fallback ONLY (ROUND 1 Check 2b / ROUND 6) -- used exclusively
-# if diversity_icc.csv is not found on disk; logged loudly either way.
+# Ledger-banked fallback ONLY -- used exclusively if diversity_icc.csv is not
+# found on disk; logged loudly either way.
 _FALLBACK_ICC = {"shannon": 0.626, "richness": 0.770}
 
 
-_BANKED_AGEACCEL_ICC = 0.516   # CHECK-2b from cross_lagged_panel.py this session
+_BANKED_AGEACCEL_ICC = 0.516   # matches CHECK-2b in cross_lagged_panel.py
 _BANKED_AGEACCEL_N   = 1787    # confirmed both-visits count
 
 def _compute_ageaccel_icc_from_csv() -> tuple[float, int]:
-    """Read leak_free_ageaccel_both_visits.csv + the full ageaccel predictions
-    and compute ICC via mixedlm -- same method as CHECK-2b in cross_lagged_panel.
+    """Read leak_free_ageaccel_both_visits.csv, recompute AgeAccel live, and
+    compute ICC via mixedlm -- same method as CHECK-2b in cross_lagged_panel.
     Falls back to banked values if the CSV is absent or the mixedlm fails."""
     import statsmodels.formula.api as smf
     csv = RESULTS_DIR / "leak_free_ageaccel_both_visits.csv"
@@ -64,9 +64,6 @@ def _compute_ageaccel_icc_from_csv() -> tuple[float, int]:
         log(f"  *** leak_free_ageaccel_both_visits.csv not found -- using banked ICC={_BANKED_AGEACCEL_ICC} ***")
         return _BANKED_AGEACCEL_ICC, _BANKED_AGEACCEL_N
     both_ids = set(pd.read_csv(csv)["study_id"].astype(int))
-    # Load ageaccel predictions (written alongside the CSV in the same run)
-    pred_csv = RESULTS_DIR / "cross_lag_all_paths.csv"  # ageaccel in long format
-    # Simpler path: rerun the live derivation properly from scratch
     try:
         pop = clp.load_population()
         gut_full = clp.load_longitudinal_gut()
@@ -83,7 +80,7 @@ def _compute_ageaccel_icc_from_csv() -> tuple[float, int]:
         return icc, len(both_ids)
     except Exception as exc:
         log(f"  *** Live AgeAccel ICC derivation failed ({type(exc).__name__}: {exc}); "
-            f"using banked ICC={_BANKED_AGEACCEL_ICC} (confirmed CHECK-2b this session) ***")
+            f"using banked ICC={_BANKED_AGEACCEL_ICC} (matches CHECK-2b) ***")
         return _BANKED_AGEACCEL_ICC, _BANKED_AGEACCEL_N
 
 
@@ -107,7 +104,7 @@ def get_icc_values() -> dict:
             icc_div[metric] = _FALLBACK_ICC[metric]
             source[metric] = "LEDGER FALLBACK (diversity_icc.csv not found this run) -- rerun paper_numbers.py for a live number"
             log(f"  *** {metric} ICC: diversity_icc.csv not found -- using ledger-banked "
-                f"fallback {_FALLBACK_ICC[metric]} (ROUND 1/6). Run paper_numbers.py to "
+                f"fallback {_FALLBACK_ICC[metric]}. Run paper_numbers.py to "
                 f"replace this with a live, on-disk value. ***")
 
     return {"gut_ageaccel": icc_ageaccel, "n_ageaccel": n_ageaccel,
@@ -166,11 +163,12 @@ def main() -> None:
     ax2.set_title("(b) Spearman-Brown a priori prediction\n(recomputed from the corrected ICC=0.516)",
                  fontsize=9.5, fontweight="bold", loc="left")
     ax2.text(0.5, -0.18,
-            "The 2020 draft's 'observed median amplification 1.167' compared against the OLD\n"
-            "ICC=0.483 (predicted 1.161). Recomputed here from the corrected ICC=0.516: predicted="
-            f"{predicted_amp:.3f}.\nAn observed-amplification re-check against real disease-outcome data "
-            "was not re-run this session --\nsee MANUSCRIPT_UPDATE_LEDGER.md for what is and is not "
-            "confirmed for this panel.",
+            "Predicted amplification, recomputed from the corrected ICC=0.516: "
+            f"{predicted_amp:.3f}. An earlier draft reported an observed median "
+            "amplification of 1.167 against the previous ICC=0.483 (predicted 1.161);\n"
+            "an observed-amplification re-check against real disease-outcome data under "
+            "the corrected ICC has not yet been performed -- see MANUSCRIPT_UPDATE_LEDGER.md "
+            "for what is and is not confirmed for this panel.",
             transform=ax2.transAxes, ha="center", va="top", fontsize=6.6, color="#555555", style="italic")
 
     fig.suptitle("Fig. 3 — Test-Retest Reliability and Spearman-Brown Amplification  (HPP)",

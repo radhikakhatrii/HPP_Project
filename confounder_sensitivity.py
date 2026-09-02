@@ -97,7 +97,7 @@ def diagnose_sign_flip(long_df: pd.DataFrame, outcomes: dict,
                        covars_all: pd.DataFrame, full_cov: list[str],
                        microbiome_var: str, dataset: str) -> pd.DataFrame:
     """
-    [ROUND 4] Investigate a baseline-vs-fully-adjusted sign flip: does it
+    Investigate a baseline-vs-fully-adjusted sign flip: does it
     track the SAMPLE (listwise deletion across the added covariates changes
     WHO is in the model) or a SPECIFIC CONFOUNDER (one covariate's inclusion
     drives the sign change)? Two tests:
@@ -328,7 +328,7 @@ def main() -> None:
         log("  deletion across 6 added covariates and should be reported alongside")
         log("  any coefficient change, since a smaller n also widens the SE.")
 
-        # [ROUND 4] richness -> hand_grip flipped sign and tightened under
+        # richness -> hand_grip flipped sign and tightened under
         # full adjustment (baseline beta=+0.0227 p=0.0146 n=1,769 vs
         # fully-adjusted beta=-0.0331 p=0.0010 n=1,557) -- diagnose whether
         # that's sample composition or a specific confounder.

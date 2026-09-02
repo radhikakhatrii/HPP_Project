@@ -7,11 +7,12 @@ visit 1 vs visit 2 for the n=1,787 leak-free repeat-visit participants,
 identity line, annotated with ICC(3,1)=0.516.
 
 AgeAccel is recomputed live via the SAME leak-free clock call used elsewhere
-this session (build_gut_clock_ageaccel -- identical features/hyperparameters/
-seed as Fig2_clock.pdf and Fig3_reliability.pdf's live ICC derivation), then
-restricted to the ids in leak_free_ageaccel_both_visits.csv (the committed,
-audited "both visits present" set). The per-visit values are also persisted
-to a CSV so this is reusable without recomputation next time.
+in this pipeline (build_gut_clock_ageaccel -- identical features/
+hyperparameters/seed as Fig2_clock.pdf and Fig3_reliability.pdf's live ICC
+derivation), then restricted to the ids in
+leak_free_ageaccel_both_visits.csv (the committed, audited "both visits
+present" set). The per-visit values are also persisted to a CSV so this is
+reusable without recomputation next time.
 
     conda activate pheno
     cd ~/studies/HPP_Prototype

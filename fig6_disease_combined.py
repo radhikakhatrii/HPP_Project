@@ -4,22 +4,20 @@ fig6_disease_combined.py
 ===============================================================================
 [MANUSCRIPT] Fig6_disease.pdf -- two-panel disease figure: (a) disease-burden
 partial correlations (AgeAccel vs 12 curated phenotypes + comorbidity count,
-from longitudinal_microbiome_age.py's trait_state_disease.csv -- Round 6 Item
-8 confirmed this script UNAFFECTED by any bug found this session), and
-(b) incident-disease OR forest, post-EPV>=10 pruning (hypertension/richness,
-the paper's old "largest signal", removed entirely -- EPV was exactly 9.0).
+from longitudinal_microbiome_age.py's trait_state_disease.csv), and
+(b) incident-disease OR forest, post-EPV>=10 pruning (hypertension/richness
+excluded entirely -- EPV was exactly 9.0).
 
-Panel (b) reuses cross_lagged_panel.py's own load_incident_diseases() is NOT
-used here (that in-module version is diagnostic-only per ROUND 4 Item 3);
-instead this reads incident_disease.csv directly, the canonical output of the
+Panel (b) does NOT reuse cross_lagged_panel.py's own in-module
+load_incident_diseases() (that version is diagnostic-only); instead this
+reads incident_disease.csv directly, the canonical output of the
 STANDALONE incident_disease.py script.
 
-Panel (a)'s exact column names in trait_state_disease.csv were never read at
-the code level this session (only inferred from a rendered summary table) --
-column matching below is therefore DEFENSIVE (substring search, same idiom
-already used throughout this codebase, e.g. sanity_check.py), and the script
-logs exactly which column it matched, or skips panel (a) loudly rather than
-guessing silently if nothing matches (Rule 4).
+Panel (a)'s exact column names in trait_state_disease.csv aren't assumed --
+column matching below is DEFENSIVE (substring search, same idiom already
+used throughout this codebase, e.g. sanity_check.py), and the script logs
+exactly which column it matched, or skips panel (a) loudly rather than
+guessing silently if nothing matches.
 
     conda activate pheno
     cd ~/studies/HPP_Prototype
@@ -67,8 +65,7 @@ def load_disease_burden() -> pd.DataFrame | None:
     path = LONG_DIR / "trait_state_disease.csv"
     if not path.exists():
         log(f"  Panel (a) SKIPPED: {path} not found. This is longitudinal_microbiome_age.py's "
-            f"own output (Round 6 Item 8 confirmed that script unaffected by this session's "
-            f"bugs) -- run it if this panel is wanted.")
+            f"own output -- run it if this panel is wanted.")
         return None
     df = pd.read_csv(path)
     outcome_col = _find_col(df, "outcome") or _find_col(df, "phenotype") or df.columns[0]
@@ -96,8 +93,8 @@ def load_incident() -> pd.DataFrame:
     path = RESULTS_DIR / "incident_disease.csv"
     if not path.exists():
         raise SystemExit(f"{path} not found -- run incident_disease.py first (the standalone, "
-                         f"canonical script -- see MANUSCRIPT_UPDATE_LEDGER.md ROUND 4 Item 3 "
-                         f"for why this file, not the in-module diagnostic, is authoritative).")
+                         f"canonical script -- see MANUSCRIPT_UPDATE_LEDGER.md for why this "
+                         f"file, not the in-module diagnostic, is authoritative).")
     df = pd.read_csv(path)
     # T2.1 dedup: remove capitalised duplicate (Abdominal_Adiposity vs abdominal_adiposity)
     # and the pre-filter diabetes definition (diabetes__before_filter vs diabetes)
